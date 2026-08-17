@@ -1,5 +1,5 @@
 {
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["app/**/*.ts", "app/**/*.tsx", "vite.config.ts"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "isolatedModules": true,
@@ -11,9 +11,10 @@
     "target": "ES2022",
     "strict": true,
     "allowJs": true,
+    "noEmit": true,
+    "types": ["vite/client"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./app/*"]
     }

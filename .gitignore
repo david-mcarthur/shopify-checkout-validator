@@ -12,6 +12,7 @@ dist/
 
 # Shopify CLI
 .shopify/
+extensions/*/manifest.json
 
 # Prisma
 prisma/*.db

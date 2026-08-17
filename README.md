@@ -1,112 +1,77 @@
-# Billing Address Blocker — Shopify Custom App
+# Billing Address Blocker
 
-A Shopify embedded custom app that restricts checkout to **Australian billing addresses only**.
+A Shopify embedded app and checkout UI extension that restricts checkout to
+Australian billing addresses.
 
----
+## Manuals
 
-## Architecture
+- [Programmer manual](docs/PROGRAMMER_MANUAL.md): architecture, request flow,
+   source modules, checkout algorithm, database, configuration, security model,
+   build commands, limitations, and maintenance.
+- [Test store setup manual](docs/TEST_STORE_SETUP.md): Dev Dashboard-first app
+   creation, Plus test-store setup, secure local configuration, extension
+   activation, test matrix, deployment, troubleshooting, and GitHub safety checks.
 
-```
-billing-address-blocker/
-├── app/                          # Remix app (admin dashboard)
-│   ├── routes/
-│   │   ├── app._index.tsx        # Main dashboard page
-│   │   ├── app.tsx               # App shell
-│   │   ├── auth.$.tsx            # Auth handler
-│   │   └── _index.tsx            # Root redirect
-│   ├── shopify.server.ts         # Shopify app config
-│   ├── db.server.ts              # Prisma client
-│   └── root.tsx                  # HTML root
-├── extensions/
-│   └── billing-address-validator/
-│       ├── src/
-│       │   └── Checkout.tsx      # ← Core validation logic
-│       ├── shopify.extension.toml
-│       └── package.json
-├── prisma/
-│   └── schema.prisma
-├── shopify.app.toml
-├── vite.config.ts
-└── package.json
-```
+## How it works
 
-## How the validation works
+The checkout extension mounts at
+`purchase.checkout.payment-method-list.render-after`, reads the billing country,
+and requests that Shopify block buyer progression for explicit non-`AU`
+addresses. It also displays a critical banner explaining how to continue.
 
-The `extensions/billing-address-validator/src/Checkout.tsx` extension:
+The merchant must enable **Allow app to block checkout** in the checkout editor.
+Without that permission, Shopify reports that progress cannot be blocked and the
+extension fails open.
 
-1. Mounts at `purchase.checkout.billing-address.render-after`
-2. Reads the billing address country via `useBillingAddress()`
-3. If the country is **not `AU`**, it:
-   - Renders a red error `<Banner>` explaining the restriction
-   - Uses `useBuyerJourneyIntercept` to **block checkout progression** server-side
-4. Once the customer changes the country to **Australia**, the error clears automatically
+The embedded Remix app is a read-only status dashboard. It does not perform the
+checkout validation.
 
----
+## Technology
 
-## Setup
+- Checkout UI Extensions API `2026-07`
+- Preact and Shopify Polaris web components
+- Remix 2, Vite, React, and Polaris for the Admin dashboard
+- Shopify App Remix authentication
+- Prisma session storage with SQLite for local development
 
-### 1. Prerequisites
+## Local verification
 
-- [Node.js 18+](https://nodejs.org/)
-- [Shopify CLI 3](https://shopify.dev/docs/apps/tools/cli): `npm install -g @shopify/cli`
-- A [Shopify Partner account](https://partners.shopify.com/)
-- A development store with **checkout extensibility enabled**
+Install both dependency trees:
 
-### 2. Create the app in Partner Dashboard
-
-1. Go to [partners.shopify.com](https://partners.shopify.com) → Apps → Create app
-2. Choose **Custom app**
-3. Copy the **API key** and **API secret**
-
-### 3. Install dependencies
-
-```bash
-npm install
+```powershell
+npm ci
+npm ci --prefix extensions/billing-address-validator
 ```
 
-### 4. Configure environment
+Run static and production checks:
 
-```bash
-cp .env.example .env
-# Edit .env with your API key and secret
+```powershell
+npm run typecheck
+npm run build
+npx shopify app build
 ```
 
-### 5. Set up the database
+For a real test-store setup, follow the
+[test store setup manual](docs/TEST_STORE_SETUP.md). Do not add real credentials
+to tracked files.
 
-```bash
-npx prisma migrate dev --name init
-```
+## Rule customization
 
-### 6. Run the app (local dev)
-
-```bash
-shopify app dev
-```
-
-This will:
-- Start a Cloudflare tunnel
-- Launch the Remix dev server
-- Hot-reload the checkout extension in your dev store
-
-### 7. Enable the extension in your theme
-
-In your Shopify admin: **Online Store → Themes → Customize → Checkout → Add app block** → select **Billing Address Validator**.
-
----
-
-## Deploying
-
-```bash
-shopify app deploy
-```
-
----
-
-## Customisation
-
-To change the allowed country, edit `extensions/billing-address-validator/src/Checkout.tsx`:
+The country rule is defined in
+`extensions/billing-address-validator/src/Checkout.tsx`:
 
 ```ts
-const ALLOWED_COUNTRY = "AU";        // ISO 3166-1 alpha-2 code
+const ALLOWED_COUNTRY = "AU";
 const ALLOWED_COUNTRY_NAME = "Australia";
 ```
+
+Use an ISO 3166-1 alpha-2 country code, update all corresponding copy, and rerun
+the complete checkout test matrix after changing the rule.
+
+## Production note
+
+This repository is appropriate for a synthetic-data Shopify Plus test store.
+Before production use, review the residual risks in the programmer manual,
+migrate the web app to Shopify's current React Router template, replace the
+deprecated buyer-journey interceptor with a cart and checkout validation
+function, and use durable shared session storage.

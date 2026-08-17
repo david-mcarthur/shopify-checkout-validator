@@ -4,7 +4,7 @@ application_url = "https://your-app-url.com"
 embedded = true
 
 [access_scopes]
-scopes = "read_orders,write_checkouts,read_checkouts"
+scopes = ""
 
 [auth]
 redirect_urls = [
@@ -14,7 +14,11 @@ redirect_urls = [
 ]
 
 [webhooks]
-api_version = "2024-01"
+api_version = "2026-07"
+
+[build]
+automatically_update_urls_on_dev = true
+include_config_on_deploy = true
 
 [pos]
 embedded = false

@@ -1,27 +1,25 @@
-import React, { useState, useEffect } from "react";
+import "@shopify/ui-extensions/preact";
+import { render } from "preact";
 import {
-  reactExtension,
-  useBillingAddress,
-  Banner,
-  BlockStack,
-  Text,
-  useApplyBillingAddressChange,
-  useExtensionCapability,
   useBuyerJourneyIntercept,
-} from "@shopify/ui-extensions-react/checkout";
+  useBillingAddress,
+  useExtensionCapability,
+  useExtensionEditor,
+} from "@shopify/ui-extensions/checkout/preact";
 
-// This extension renders after the billing address section in checkout.
+// This extension renders after the payment method list in checkout.
 // It validates that the billing country is Australia (AU).
-export default reactExtension(
-  "purchase.checkout.billing-address.render-after",
-  () => <BillingAddressValidator />
-);
+export default function extension() {
+  render(<BillingAddressValidator />, document.body);
+}
 
 const ALLOWED_COUNTRY = "AU";
 const ALLOWED_COUNTRY_NAME = "Australia";
 
 function BillingAddressValidator() {
   const billingAddress = useBillingAddress();
+  const canBlockProgress = useExtensionCapability("block_progress");
+  const editorType = useExtensionEditor()?.type;
   const country = billingAddress?.countryCode ?? "";
   const isAustralia = country === "" || country === ALLOWED_COUNTRY;
 
@@ -34,7 +32,6 @@ function BillingAddressValidator() {
         errors: [
           {
             message: `We only accept orders with an Australian billing address. Please update your billing country to ${ALLOWED_COUNTRY_NAME} (${ALLOWED_COUNTRY}) to continue.`,
-            target: "$.cart.billingAddress.countryCode",
           },
         ],
       };
@@ -42,25 +39,25 @@ function BillingAddressValidator() {
     return { behavior: "allow" };
   });
 
+  if (editorType === "checkout" && !canBlockProgress) {
+    return (
+      <s-banner tone="warning" heading="Checkout blocking is not enabled">
+        Enable this extension under Checkout behavior so it can prevent buyers
+        with non-Australian billing addresses from continuing.
+      </s-banner>
+    );
+  }
+
   // Only show the banner when a non-AU country is explicitly selected
   if (isAustralia) {
     return null;
   }
 
   return (
-    <BlockStack spacing="tight">
-      <Banner status="critical">
-        <BlockStack spacing="extraTight">
-          <Text size="medium" emphasis="bold">
-            Australian billing address required
-          </Text>
-          <Text size="base">
-            We only accept orders with an Australian billing address. Please
-            update your billing country to {ALLOWED_COUNTRY_NAME} (
-            {ALLOWED_COUNTRY}) to continue.
-          </Text>
-        </BlockStack>
-      </Banner>
-    </BlockStack>
+    <s-banner tone="critical" heading="Australian billing address required">
+      We only accept orders with an Australian billing address. Please update
+      your billing country to {ALLOWED_COUNTRY_NAME} ({ALLOWED_COUNTRY}) to
+      continue.
+    </s-banner>
   );
 }

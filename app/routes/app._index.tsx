@@ -10,23 +10,20 @@ import {
   Badge,
   Box,
   InlineStack,
-  Icon,
   Divider,
   Banner,
   List,
 } from "@shopify/polaris";
-import { CheckCircleIcon, AlertCircleIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
 
   // Fetch shop info
   const shopResponse = await admin.graphql(`
     query {
       shop {
         name
-        email
         myshopifyDomain
         plan {
           displayName
@@ -40,15 +37,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return json({
     shop,
-    extensionStatus: "active",
-    validationRule: "AU",
     blockedCountries: "All countries except Australia (AU)",
   });
 };
 
 export default function Index() {
-  const { shop, extensionStatus, validationRule, blockedCountries } =
-    useLoaderData<typeof loader>();
+  const { shop, blockedCountries } = useLoaderData<typeof loader>();
 
   return (
     <Page
@@ -58,14 +52,10 @@ export default function Index() {
       <Layout>
         {/* Status Banner */}
         <Layout.Section>
-          <Banner
-            title="Extension Active"
-            tone="success"
-          >
+          <Banner title="Extension configured" tone="info">
             <p>
-              The checkout UI extension is enforcing Australian billing
-              addresses. Customers who enter a non-AU billing country will see
-              an error and cannot proceed.
+              Deploy the app and enable checkout blocking in the checkout
+              editor to enforce Australian billing addresses.
             </p>
           </Banner>
         </Layout.Section>
@@ -124,7 +114,7 @@ export default function Index() {
                 <Text variant="headingMd" as="h2">
                   Validation Rule
                 </Text>
-                <Badge tone="success">Active</Badge>
+                <Badge tone="info">Configured</Badge>
               </InlineStack>
               <Divider />
               <BlockStack gap="300">
@@ -153,7 +143,7 @@ export default function Index() {
                     Error Message Shown to Customer
                   </Text>
                   <Box
-                    background="bg-surface-critical-subdued"
+                    background="bg-surface-critical"
                     padding="300"
                     borderRadius="200"
                     borderColor="border-critical"
@@ -181,7 +171,7 @@ export default function Index() {
               <Divider />
               <BlockStack gap="300">
                 <InlineStack gap="200" blockAlign="center">
-                  <Badge tone="success">Deployed</Badge>
+                  <Badge tone="info">Build ready</Badge>
                   <Text variant="bodyMd" as="p">
                     billing-address-validator
                   </Text>
@@ -199,7 +189,7 @@ export default function Index() {
                     Validation Point
                   </Text>
                   <Text variant="bodyMd" as="p">
-                    purchase.checkout.billing-address.render-after
+                    purchase.checkout.payment-method-list.render-after
                   </Text>
                 </BlockStack>
                 <BlockStack gap="100">
@@ -223,7 +213,7 @@ export default function Index() {
               <Divider />
               <List type="number">
                 <List.Item>
-                  Customer reaches the billing address step in Shopify checkout.
+                  Customer reaches the payment section in Shopify checkout.
                 </List.Item>
                 <List.Item>
                   The checkout UI extension reads the selected billing country
@@ -235,8 +225,8 @@ export default function Index() {
                   Australian billing addresses are accepted.
                 </List.Item>
                 <List.Item>
-                  The checkout validation function also blocks server-side
-                  submission, preventing any workarounds.
+                  The buyer journey interceptor prevents checkout progression
+                  when Shopify has granted the block progress capability.
                 </List.Item>
                 <List.Item>
                   Once the customer corrects the billing country to{" "}
