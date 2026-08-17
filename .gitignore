@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+build/
+dist/
+.cache/
+
+# Environment variables (NEVER commit secrets)
+.env
+*.env.local
+
+# Shopify CLI
+.shopify/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+dev.sqlite
+dev.sqlite-journal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json

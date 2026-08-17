@@ -1,0 +1,14 @@
+api_version = "2024-01"
+
+[[extensions]]
+type = "ui_extension"
+name = "Billing Address Validator"
+handle = "billing-address-validator"
+
+[[extensions.targeting]]
+module = "./src/Checkout.tsx"
+target = "purchase.checkout.billing-address.render-after"
+
+[extensions.capabilities]
+block_progress = true
+network_access = false
