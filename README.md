@@ -1,7 +1,7 @@
 # Billing Address Blocker
 
 A Shopify embedded app and checkout UI extension that restricts checkout to
-Australian billing addresses.
+Australian billing addresses entered with printable ASCII characters.
 
 ## Manuals
 
@@ -15,9 +15,10 @@ Australian billing addresses.
 ## How it works
 
 The checkout extension mounts at
-`purchase.checkout.payment-method-list.render-after`, reads the billing country,
+`purchase.checkout.payment-method-list.render-after`, reads the billing address,
 and requests that Shopify block buyer progression for explicit non-`AU`
-addresses. It also displays a critical banner explaining how to continue.
+addresses or non-ASCII address characters. It also displays a critical banner
+explaining how to continue.
 
 The merchant must enable **Allow app to block checkout** in the checkout editor.
 Without that permission, Shopify reports that progress cannot be blocked and the
@@ -46,6 +47,7 @@ npm ci --prefix extensions/billing-address-validator
 Run static and production checks:
 
 ```powershell
+npm test
 npm run typecheck
 npm run build
 npx shopify app build
@@ -57,16 +59,18 @@ to tracked files.
 
 ## Rule customization
 
-The country rule is defined in
-`extensions/billing-address-validator/src/Checkout.tsx`:
+The country and character policies are defined in
+`extensions/billing-address-validator/src/validation.ts`:
 
 ```ts
 const ALLOWED_COUNTRY = "AU";
-const ALLOWED_COUNTRY_NAME = "Australia";
+const UNSUPPORTED_CHARACTER_PATTERN = /[^\x20-\x7E]/;
 ```
 
 Use an ISO 3166-1 alpha-2 country code, update all corresponding copy, and rerun
-the complete checkout test matrix after changing the rule.
+the complete checkout test matrix after changing the rule. The character policy
+allows printable ASCII only, so accented letters, smart punctuation, and all
+non-Latin scripts are intentionally rejected.
 
 ## Production note
 

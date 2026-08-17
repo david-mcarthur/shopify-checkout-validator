@@ -138,6 +138,24 @@ server SDK for App Store distribution. For a test app, keep the Dev Dashboard
 app unreleased and install it only on the selected development store until the
 final distribution model is decided.
 
+### Enable protected customer fields
+
+Shopify treats names, street addresses, postcodes, and phone numbers as Level 2
+protected customer data. Complete these steps before testing the character rule:
+
+1. Select the intended app distribution method; Shopify requires this before
+  protected-data access can be configured.
+2. Open the app's **API access requests** or **Protected customer data** page.
+3. Select protected customer data and the **Name**, **Address**, and **Phone**
+  fields, stating that they are processed transiently to validate checkout.
+4. Complete the requested data-protection details and save.
+
+For an app installed only on development stores, Shopify allows development
+access after the fields are selected; app-review submission is not required.
+The extension does not store or transmit these address values. If Shopify does
+not expose a field, the extension cannot validate that field, so confirm every
+field in the test matrix rather than assuming access from a successful build.
+
 ## 7. Prepare the local repository
 
 From the repository root:
@@ -299,18 +317,20 @@ checkouts where the editor provides that option.
 
 Add the test product to cart and open checkout. Use only test customer details.
 
-| Test | Billing country | Expected result |
+| Test | Billing details | Expected result |
 | --- | --- | --- |
 | Initial state | No billing address yet | No blocker; checkout can initialize. |
-| Allowed | Australia | No critical banner; progression allowed. |
+| Allowed | Australia; printable English characters | No critical banner; progression allowed. |
 | Blocked NZ | New Zealand | Critical banner; progression blocked. |
 | Blocked US | United States | Critical banner; progression blocked. |
-| Corrected | Non-AU changed to Australia | Banner clears; progression allowed. |
-| Permission disabled | Non-AU | Banner can appear, but progression is not guaranteed to block. |
-| Same as shipping | Non-AU shipping reused for billing | Confirm billing hook receives country and blocks. |
-| Different billing | Explicit non-AU billing address | Confirm block and message. |
+| Unsupported script | Australia; non-ASCII characters in a name, company, street, city, postcode, province, or phone field | English-character banner; progression blocked. |
+| Accented Latin | Australia; a character such as `é` | English-character banner; progression blocked. |
+| Corrected | Invalid country or characters corrected | Banner clears; progression allowed. |
+| Permission disabled | Invalid billing details | Banner can appear, but progression is not guaranteed to block. |
+| Same as shipping | Invalid shipping address reused for billing | Confirm billing hook receives the values and blocks. |
+| Different billing | Explicit invalid billing address | Confirm block and message. |
 | Browser navigation | Back/forward after invalid address | Rule remains effective on next progress attempt. |
-| Accelerated checkout | Shop Pay/nonstandard path | Confirm billing country becomes available and rule cannot be bypassed. |
+| Accelerated checkout | Shop Pay/nonstandard path | Confirm billing details become available and the rules cannot be bypassed. |
 
 Run applicable cases in one-page and three-page checkout configurations. The
 extension target is in the payment section, so the banner may not appear until
@@ -439,7 +459,8 @@ The test-store setup is complete only when all are true:
 - Blocking permission is enabled and saved.
 - AU billing allows progression.
 - At least two non-AU countries are blocked.
-- Changing non-AU to AU clears the problem.
+- Non-ASCII characters in each available billing field are blocked.
+- Correcting the country and unsupported characters clears the problem.
 - Permission-disabled behavior is understood and recorded.
 - No secret or session database is staged in Git.
 - The linked app version/configuration has been reviewed in Dev Dashboard.

@@ -5,6 +5,8 @@
     "build": "remix vite:build",
     "dev": "shopify app dev",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
+    "test": "npm run test:extension",
+    "test:extension": "node --test extensions/billing-address-validator/tests/validation.test.mjs",
     "setup": "prisma generate",
     "start": "remix-serve ./build/server/index.js",
     "docker-start": "npm run setup && npm run start",

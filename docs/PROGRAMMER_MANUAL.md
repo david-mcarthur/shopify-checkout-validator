@@ -7,7 +7,9 @@ Its current business rule is:
 
 > Allow checkout progression when the billing country is Australia (`AU`) or
 > has not been entered yet. Block progression when an explicit non-Australian
-> billing country is present and Shopify has granted blocking permission.
+> billing country is present, or when a billing-address field contains a
+> character outside printable ASCII, and Shopify has granted blocking
+> permission.
 
 The repository contains two separate runtimes:
 
@@ -55,7 +57,9 @@ deployed, active, or permitted to block checkout.
 | `app/routes/app.tsx` | Authenticated layout route for the embedded app. |
 | `app/routes/app._index.tsx` | Queries store metadata and renders the dashboard. |
 | `app/routes/auth.$.tsx` | Delegates `/auth/*` requests to Shopify authentication. |
-| `extensions/billing-address-validator/src/Checkout.tsx` | Checkout extension entry point and country validation rule. |
+| `extensions/billing-address-validator/src/Checkout.tsx` | Checkout extension entry point, Shopify hooks, blocker responses, and banners. |
+| `extensions/billing-address-validator/src/validation.ts` | Pure country and character policy shared by blocker and banner logic. |
+| `extensions/billing-address-validator/tests/validation.test.mjs` | Regression tests for both checkout rules and their precedence. |
 | `extensions/billing-address-validator/shopify.extension.toml` | Extension API version, target, and capabilities. |
 | `extensions/billing-address-validator/package.json` | Independent Preact extension dependencies. |
 | `prisma/schema.prisma` | SQLite data source and Shopify session schema. |
@@ -200,42 +204,47 @@ does not grant permission by itself.
 `Checkout.tsx` imports:
 
 - `@shopify/ui-extensions/preact` to initialize the extension Preact runtime.
-- The target-specific type module so TypeScript recognizes allowed Polaris web
-  components such as `<s-banner>`.
 - `render` from Preact.
 - Billing address, buyer journey, capability, and editor hooks from
   `@shopify/ui-extensions/checkout/preact`.
+- The pure policy constants and `getBillingAddressIssue()` from `validation.ts`.
+
+The generated `shopify.d.ts` declaration supplies target-specific API and
+Polaris component types such as `<s-banner>`.
 
 The default export renders `BillingAddressValidator` into `document.body`, which
 is the entry contract expected by Shopify CLI for current checkout extensions.
 
 ### 6.3 Validation algorithm
 
-The constants are:
+`validation.ts` owns the constants and decision function:
 
 ```ts
 const ALLOWED_COUNTRY = "AU";
 const ALLOWED_COUNTRY_NAME = "Australia";
+const UNSUPPORTED_CHARACTER_PATTERN = /[^\x20-\x7E]/;
 ```
 
 On each reactive render:
 
 1. `useBillingAddress()` returns the proposed billing address.
 2. A missing address or country becomes an empty string.
-3. `isAustralia` is true when the country is empty or exactly `AU`.
-4. `useExtensionCapability("block_progress")` reports whether blocking is
+3. `getBillingAddressIssue()` returns `"country"` for an explicit country other
+  than `AU`. An absent country remains valid while checkout initializes.
+4. If the country passes, `hasUnsupportedCharacters()` checks all available billing-address strings
+  for characters outside printable ASCII (`U+0020` through `U+007E`).
+5. The decision function returns `"characters"` for unsupported input or
+  `null` when both policies pass. Country failure deliberately has precedence.
+6. `useExtensionCapability("block_progress")` reports whether blocking is
    granted to the extension.
-5. `useExtensionEditor()` identifies editor context.
-6. `useBuyerJourneyIntercept()` registers a top-level interceptor.
-7. If `canBlockProgress` is true and `isAustralia` is false, the interceptor
-   returns `behavior: "block"`, a diagnostic reason, and a page-level message.
-8. Otherwise it returns `behavior: "allow"`.
+7. `useBuyerJourneyIntercept()` and the rendered banner consume the same issue,
+  preventing their behavior and copy from selecting different rules.
+8. The interceptor blocks only when an issue exists and Shopify reports
+  `canBlockProgress`; otherwise it allows progression.
 9. An editor-only warning appears when the merchant has not granted blocking.
-10. A critical banner appears to buyers when an explicit non-AU country is set.
 
-When the buyer changes the country, the billing-address hook updates, the
-component rerenders, and the interceptor evaluates the new country on the next
-progress attempt.
+When the buyer changes any billing-address field, the hook updates, the
+component rerenders, and both the banner and interceptor use the new decision.
 
 ### 6.4 Intentional fail-open cases
 
@@ -244,9 +253,14 @@ The extension allows progression in these cases:
 - Billing country is absent or empty.
 - Shopify reports `canBlockProgress` as false.
 - The merchant has not granted the block-progress capability.
+- Shopify does not expose a protected billing-address field to the extension.
 
 The empty-country behavior avoids blocking checkout before payment/billing data
 exists, but it means accelerated checkout paths require explicit testing.
+
+Names and street-address fields are protected customer data. The app must have
+the applicable Shopify protected-customer-data access before those values can
+be validated; the extension cannot reject a value Shopify does not expose.
 
 The interceptor is checkout UI logic, not a Shopify Function and not server-side
 validation. Shopify marks buyer-journey interception as deprecated in favor of a
@@ -299,10 +313,16 @@ The root and extension have separate dependency trees and lockfiles.
 ```powershell
 npm ci
 npm ci --prefix extensions/billing-address-validator
+npm test
 npm run typecheck
 npm run build
 npx shopify app build
 ```
+
+`npm test` executes the pure checkout policy through Node's test runner. It
+covers incomplete data, valid Australian punctuation, every printable ASCII
+character, non-AU countries, simultaneous failures, non-ASCII input, and
+correction back to valid details.
 
 `npm run typecheck` first checks the Remix project, then checks the extension
 with its Preact JSX configuration.
