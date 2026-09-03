@@ -43,7 +43,7 @@ below.
 - The dashboard labels describe repository configuration; they are not live
   deployment or capability checks.
 
-Do not treat a successful test as production authorization. Production should
+Do not treat a successful test as production authorisation. Production should
 also migrate validation to a cart and checkout validation function and use a
 durable shared database.
 

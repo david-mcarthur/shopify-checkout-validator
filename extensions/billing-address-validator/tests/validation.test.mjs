@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  formatAllowedCountries,
   getBillingAddressIssue,
   hasUnsupportedCharacters,
+  parseAllowedCountries,
 } from "../src/validation.ts";
 
 test("allows an incomplete billing address", () => {
@@ -35,7 +37,7 @@ test("allows every printable ASCII character", () => {
   assert.equal(hasUnsupportedCharacters([printableAscii]), false);
 });
 
-test("blocks non-Australian countries", () => {
+test("blocks non-Australian countries by default", () => {
   assert.equal(getBillingAddressIssue({ countryCode: "NZ" }), "country");
   assert.equal(getBillingAddressIssue({ countryCode: "US" }), "country");
 });
@@ -84,4 +86,51 @@ test("allows progression after invalid details are corrected", () => {
     getBillingAddressIssue({ countryCode: "AU", name: "Jose O'Connor" }),
     null,
   );
+});
+
+test("allows a NZ address when NZ is configured", () => {
+  assert.equal(
+    getBillingAddressIssue({ countryCode: "NZ" }, ["NZ"]),
+    null,
+  );
+  assert.equal(
+    getBillingAddressIssue({ countryCode: "AU" }, ["NZ"]),
+    "country",
+  );
+});
+
+test("allows any address in a multi-country list", () => {
+  const allowed = ["AU", "NZ"];
+  assert.equal(getBillingAddressIssue({ countryCode: "AU" }, allowed), null);
+  assert.equal(getBillingAddressIssue({ countryCode: "NZ" }, allowed), null);
+  assert.equal(
+    getBillingAddressIssue({ countryCode: "US" }, allowed),
+    "country",
+  );
+});
+
+test("parseAllowedCountries falls back to AU when empty or invalid", () => {
+  assert.deepEqual(parseAllowedCountries(undefined), ["AU"]);
+  assert.deepEqual(parseAllowedCountries(""), ["AU"]);
+  assert.deepEqual(parseAllowedCountries("   "), ["AU"]);
+  assert.deepEqual(parseAllowedCountries("???"), ["AU"]);
+});
+
+test("parseAllowedCountries normalizes casing, whitespace, and separators", () => {
+  assert.deepEqual(parseAllowedCountries("au"), ["AU"]);
+  assert.deepEqual(parseAllowedCountries("au,nz"), ["AU", "NZ"]);
+  assert.deepEqual(parseAllowedCountries(" AU , nz "), ["AU", "NZ"]);
+  assert.deepEqual(parseAllowedCountries("au nz"), ["AU", "NZ"]);
+  assert.deepEqual(parseAllowedCountries("au,au,nz"), ["AU", "NZ"]);
+  assert.deepEqual(parseAllowedCountries("au,xxx,nz"), ["AU", "NZ"]);
+});
+
+test("formatAllowedCountries produces human-readable labels", () => {
+  assert.equal(formatAllowedCountries(["AU"]), "Australia");
+  assert.equal(formatAllowedCountries(["AU", "NZ"]), "Australia or New Zealand");
+  assert.equal(
+    formatAllowedCountries(["AU", "NZ", "US"]),
+    "Australia, New Zealand, or United States",
+  );
+  assert.equal(formatAllowedCountries(["ZZ"]), "ZZ");
 });

@@ -5,6 +5,8 @@ type = "ui_extension"
 name = "Billing Address Validator"
 handle = "billing-address-validator"
 
+uid = "e3d79d06-62fa-1e83-c179-4fa02ea2c747aecb698c"
+
 [[extensions.targeting]]
 module = "./src/Checkout.tsx"
 target = "purchase.checkout.payment-method-list.render-after"
@@ -12,3 +14,11 @@ target = "purchase.checkout.payment-method-list.render-after"
 [extensions.capabilities]
 block_progress = true
 network_access = false
+
+[extensions.settings]
+
+  [[extensions.settings.fields]]
+  key = "allowed_countries"
+  type = "single_line_text_field"
+  name = "Allowed billing countries"
+  description = "Comma-separated ISO 3166-1 alpha-2 codes (e.g. AU or AU,NZ). Only billing addresses in these countries are allowed through checkout. Defaults to AU if left blank."

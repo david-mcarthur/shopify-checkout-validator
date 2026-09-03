@@ -5,12 +5,18 @@ import {
   useBillingAddress,
   useExtensionCapability,
   useExtensionEditor,
+  useSettings,
 } from "@shopify/ui-extensions/checkout/preact";
 import {
-  ALLOWED_COUNTRY,
-  ALLOWED_COUNTRY_NAME,
+  formatAllowedCountries,
   getBillingAddressIssue,
+  parseAllowedCountries,
 } from "./validation";
+
+// Merchant-configured setting from shopify.extension.toml, edited in the checkout editor.
+type BillingAddressValidatorSettings = {
+  allowed_countries?: string;
+};
 
 // This extension renders after the payment method list in checkout.
 // It validates the billing country and address character set.
@@ -22,17 +28,23 @@ function BillingAddressValidator() {
   const billingAddress = useBillingAddress();
   const canBlockProgress = useExtensionCapability("block_progress");
   const editorType = useExtensionEditor()?.type;
-  const billingAddressIssue = getBillingAddressIssue(billingAddress);
+  const settings = useSettings<BillingAddressValidatorSettings>();
 
-  // Block the buyer journey (prevent proceeding to next step) when invalid
+  const allowedCountries = parseAllowedCountries(settings.allowed_countries);
+  const allowedCountriesLabel = formatAllowedCountries(allowedCountries);
+  const billingAddressIssue = getBillingAddressIssue(
+    billingAddress,
+    allowedCountries,
+  );
+
   useBuyerJourneyIntercept(({ canBlockProgress }) => {
     if (canBlockProgress && billingAddressIssue === "country") {
       return {
         behavior: "block",
-        reason: `Billing address must be in ${ALLOWED_COUNTRY_NAME}.`,
+        reason: `Billing address must be in ${allowedCountriesLabel}.`,
         errors: [
           {
-            message: `We only accept orders with an Australian billing address. Please update your billing country to ${ALLOWED_COUNTRY_NAME} (${ALLOWED_COUNTRY}) to continue.`,
+            message: `We only accept orders billed to ${allowedCountriesLabel}. Please update your billing country to continue.`,
           },
         ],
       };
@@ -58,17 +70,19 @@ function BillingAddressValidator() {
     return (
       <s-banner tone="warning" heading="Checkout blocking is not enabled">
         Enable this extension under Checkout behavior so it can prevent buyers
-        with non-Australian billing addresses from continuing.
+        with unsupported billing addresses from continuing.
       </s-banner>
     );
   }
 
   if (billingAddressIssue === "country") {
     return (
-      <s-banner tone="critical" heading="Australian billing address required">
-        We only accept orders with an Australian billing address. Please update
-        your billing country to {ALLOWED_COUNTRY_NAME} ({ALLOWED_COUNTRY}) to
-        continue.
+      <s-banner
+        tone="critical"
+        heading={`Billing address in ${allowedCountriesLabel} required`}
+      >
+        We only accept orders billed to {allowedCountriesLabel}. Please update
+        your billing country to continue.
       </s-banner>
     );
   }

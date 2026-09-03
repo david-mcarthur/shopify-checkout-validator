@@ -59,18 +59,25 @@ to tracked files.
 
 ## Rule customization
 
-The country and character policies are defined in
+The **allowed countries** are set per store by the merchant in the checkout
+editor, under this extension's settings. The value is a comma-separated list
+of ISO 3166-1 alpha-2 codes (for example `AU` or `AU,NZ`). If left blank the
+extension defaults to `AU`.
+
+Character policy and defaults live in
 `extensions/billing-address-validator/src/validation.ts`:
 
 ```ts
-const ALLOWED_COUNTRY = "AU";
+export const DEFAULT_ALLOWED_COUNTRIES: readonly string[] = ["AU"];
 const UNSUPPORTED_CHARACTER_PATTERN = /[^\x20-\x7E]/;
 ```
 
-Use an ISO 3166-1 alpha-2 country code, update all corresponding copy, and rerun
-the complete checkout test matrix after changing the rule. The character policy
-allows printable ASCII only, so accented letters, smart punctuation, and all
-non-Latin scripts are intentionally rejected.
+The character policy allows printable ASCII only, so accented letters, smart
+punctuation, and all non-Latin scripts are intentionally rejected. To display
+a friendlier name for a country in the block/banner copy, add its ISO code to
+the `COUNTRY_NAMES` map in the same file; unknown codes fall back to the raw
+code. Rerun the checkout test matrix after changing the character rule or the
+country name map.
 
 ## Production note
 
